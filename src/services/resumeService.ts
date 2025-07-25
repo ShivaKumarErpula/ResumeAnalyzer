@@ -100,18 +100,22 @@ export const uploadAndAnalyzeResume = async (file: File): Promise<UploadResponse
     
     // Save to database
     const { data, error } = await supabase
-      .from('resume_analyses')
+      .from('resumes')
       .insert([{
-        file_name: analysis.fileName,
-        upload_date: analysis.uploadDate,
+        original_filename: analysis.fileName,
+        file_path: `/uploads/${analysis.fileName}`,
         personal_details: analysis.personalDetails,
-        summary: analysis.summary,
-        work_experience: analysis.workExperience,
-        education: analysis.education,
-        projects: analysis.projects,
-        certifications: analysis.certifications,
-        skills: analysis.skills,
-        ai_feedback: analysis.aiFeedback
+        resume_content: {
+          summary: analysis.summary,
+          work_experience: analysis.workExperience,
+          education: analysis.education,
+          projects: analysis.projects,
+          certifications: analysis.certifications
+        },
+        technical_skills: analysis.skills.technical,
+        soft_skills: analysis.skills.soft,
+        ai_feedback: analysis.aiFeedback,
+        rating: Math.round(analysis.aiFeedback.rating)
       }])
       .select()
       .single();
@@ -135,23 +139,26 @@ export const uploadAndAnalyzeResume = async (file: File): Promise<UploadResponse
 export const getResumeHistory = async (): Promise<ResumeAnalysis[]> => {
   try {
     const { data, error } = await supabase
-      .from('resume_analyses')
+      .from('resumes')
       .select('*')
-      .order('upload_date', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     return data.map(item => ({
       id: item.id,
-      fileName: item.file_name,
-      uploadDate: item.upload_date,
+      fileName: item.original_filename,
+      uploadDate: item.created_at,
       personalDetails: item.personal_details,
-      summary: item.summary,
-      workExperience: item.work_experience,
-      education: item.education,
-      projects: item.projects,
-      certifications: item.certifications,
-      skills: item.skills,
+      summary: item.resume_content?.summary || '',
+      workExperience: item.resume_content?.work_experience || [],
+      education: item.resume_content?.education || [],
+      projects: item.resume_content?.projects || [],
+      certifications: item.resume_content?.certifications || [],
+      skills: {
+        technical: item.technical_skills || [],
+        soft: item.soft_skills || []
+      },
       aiFeedback: item.ai_feedback
     }));
   } catch (error) {
